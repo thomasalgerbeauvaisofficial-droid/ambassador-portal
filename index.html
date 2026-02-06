@@ -1,39 +1,141 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tommy Alger — Ambassador Portal</title>
-<style>
-  :root{
-    --bg:#0f172a; --panel:#1e293b; --panel2:#0b1220; --border:#334155;
-    --text:#f1f5f9; --muted:#b7c3d3;
-    --green:#22c55e; --blue:#3b82f6; --red:#ef4444; --amber:#f59e0b;
+<script>
+// ----------------------------
+// Minimal self-contained JS
+// ----------------------------
+const FOUNDER_PASSWORD = 'founder123';
+let currentUser = null;
+
+// ----------------------------
+// USER DATA
+// ----------------------------
+let data = {
+  tanya:{name:'Tanya Alger', level:'senior', currency:'CAD', points:124, pending:0, earned:0, paid:0, promoCode:'TA-LUNA9QX-WG26', memberId:'TA-AMB-WG7-9QX-LUNA'},
+  daniel:{name:'Daniel Beauvais', level:'senior', currency:'CAD', points:243, pending:0, earned:0, paid:0, promoCode:'TA-EMBERKR8-SA26', memberId:'TA-AMB-SA4-KR8-EMBER'},
+  jimmy:{name:'Jimmy Alcuizar', level:'brand', currency:'PHP', points:0, pending:0, earned:0, paid:0, promoCode:'TA-NEONN7C-BR26', memberId:'TA-AMB-B2-N7C-NEON'}
+};
+
+// Step 1: Add Founder as proper user
+data['founder'] = {
+  name: 'Founder',
+  level: 'Admin',
+  currency: 'CAD',
+  points: 0,
+  pending: 0,
+  earned: 0,
+  paid: 0,
+  promoCode: 'FOUNDER-ACCESS',
+  memberId: FOUNDER_PASSWORD
+};
+
+const POINTS_TO_MONEY = 0.02;
+const CAD_TO_PHP = 45;
+
+// ----------------------------
+// UTILS
+// ----------------------------
+function moneyString(amount,currency){ return amount.toFixed(2)+' '+currency; }
+function nowUTC(){ return Date.now(); }
+function isProbationComplete(){ return true; } // simplified
+
+// ----------------------------
+// LOGIN / LOGOUT
+// ----------------------------
+function login(){
+  const user = document.getElementById('userSelect').value;
+  const pass = document.getElementById('userPass').value.trim();
+
+  if(!data[user] || pass !== (user==='founder'? FOUNDER_PASSWORD : data[user].memberId)) {
+    return alert('❌ Wrong password.');
   }
-  *{box-sizing:border-box}
-  body{margin:0;font-family:Arial,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text);}
-  .container{max-width:1200px;margin:auto;padding:22px;}
-  .nav{display:flex;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center;}
-  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
-  .hidden{display:none;}
-  .login-box{max-width:560px;margin:70px auto;background:var(--panel);padding:28px;border-radius:18px;text-align:center;box-shadow:0 0 25px rgba(0,0,0,0.7);}
-  .banner{background:var(--panel2);border:1px solid var(--border);padding:10px 12px;border-radius:14px;margin:14px 0;}
-  .tag{display:inline-block;padding:3px 10px;border-radius:999px;background:var(--panel2);border:1px solid var(--border);font-size:.85rem;}
-  .muted{color:var(--muted);font-size:.95rem;line-height:1.35;}
-  input,select,textarea{width:100%;padding:10px 10px;margin:6px 0;border-radius:10px;border:1px solid transparent;background:#0b1220;color:var(--text);font-size:1rem;}
-  input:focus,select:focus,textarea:focus{outline:none;box-shadow:0 0 0 2px rgba(59,130,246,.35);}
-  button{padding:10px 14px;border:none;border-radius:12px;cursor:pointer;margin:2px;font-weight:bold;}
-  .primary{background:var(--green);color:#0f172a;}
-  .secondary{background:var(--blue);color:var(--text);}
-  .danger{background:var(--red);color:var(--text);}
-  .warn{background:var(--amber);color:#0f172a;}
-  .small{padding:7px 10px;font-size:0.9rem;}
-  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:18px;}
-  .card{background:var(--panel);padding:16px;border-radius:16px;text-align:center;box-shadow:0 0 18px rgba(0,0,0,0.55);}
-  .card h2{font-size:1.05rem;margin:0 0 8px 0;color:var(--muted);}
-  .big{font-size:1.65rem;font-weight:800;}
-  table{width:100%;border-collapse:collapse;margin-top:14px;font-size:0.95rem;overflow:auto;display:block;}
-  th,td{border:1px solid var(--border);padding:10px;text-align:center;white-space:nowrap;}
+
+  currentUser = user;
+  document.getElementById('loginBox').classList.add('hidden');
+  document.getElementById('ambassadorApp').classList.remove('hidden');
+  updateDashboard();
+
+  if(user==='founder'){
+    alert('✅ Founder login successful!');
+  }
+}
+
+function logout(){
+  currentUser = null;
+  document.getElementById('loginBox').classList.remove('hidden');
+  document.getElementById('ambassadorApp').classList.add('hidden');
+}
+
+// ----------------------------
+// DASHBOARD
+// ----------------------------
+function updateDashboard(){
+  const d = data[currentUser];
+  document.getElementById('programStatusTag').innerText = 'LIVE';
+  document.getElementById('ambName').innerText = d.name + ' (' + d.level + ')';
+  document.getElementById('ambPending').innerText = moneyString(d.pending, d.currency);
+  document.getElementById('ambEarned').innerText = moneyString(d.earned, d.currency);
+  document.getElementById('ambPaid').innerText = moneyString(d.paid, d.currency);
+  document.getElementById('ambPoints').innerText = d.points;
+  document.getElementById('pointsValue').innerText = (d.points*POINTS_TO_MONEY).toFixed(2);
+  document.getElementById('promoCodeDisplay').value = d.promoCode;
+  document.getElementById('refLink').value = 'https://tommyalger.com/merch?promo='+encodeURIComponent(d.promoCode);
+  const example = d.memberId.slice(-8);
+  document.getElementById('payoutHint').innerText = 'Example code: TA-PAY-' + example;
+  populatePayoutOptions();
+}
+
+// ----------------------------
+// POINTS & PAYOUT
+// ----------------------------
+function convertPoints(){
+  const d = data[currentUser];
+  const value = d.points*POINTS_TO_MONEY;
+  if(value<=0) return alert('No points to convert.');
+  d.pending += value;
+  d.earned += value;
+  d.points = 0;
+  updateDashboard();
+  alert('✅ Points converted to pending.');
+}
+
+function requestPayout(user,type){
+  alert('✅ Payout request submitted ('+type+')');
+}
+
+function copyRef(){
+  const ref = document.getElementById('refLink');
+  ref.select();
+  document.execCommand('copy');
+  alert('Copied referral link!');
+}
+
+// ----------------------------
+// POPULATE GIFTS (simplified)
+// ----------------------------
+function populatePayoutOptions(){
+  const d = data[currentUser];
+  const sel = document.getElementById('giftCardType');
+  sel.innerHTML = '';
+  const gifts = d.currency==='PHP'? ['Store Credit','Amazon','GCash Gift Card'] : ['Store Credit','Amazon','Tim Hortons'];
+  gifts.forEach(g=>{
+    const opt = document.createElement('option');
+    opt.value = g;
+    opt.textContent = g;
+    sel.appendChild(opt);
+  });
+}
+
+// ----------------------------
+// INIT
+// ----------------------------
+document.addEventListener('DOMContentLoaded', ()=>{
+  window.login = login;
+  window.logout = logout;
+  window.convertPoints = convertPoints;
+  window.requestPayout = requestPayout;
+  window.copyRef = copyRef;
+  console.log('Portal initialized');
+});
+</script>
   th{background:#334155;position:sticky;top:0;}
   .section{margin-top:22px;}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
