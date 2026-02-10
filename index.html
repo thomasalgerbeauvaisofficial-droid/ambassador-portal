@@ -1,6 +1,6 @@
 <script>
 // ----------------------------
-// CONFIG
+// Minimal self-contained JS
 // ----------------------------
 const FOUNDER_PASSWORD = 'founder123';
 let currentUser = null;
@@ -9,24 +9,26 @@ let currentUser = null;
 // USER DATA
 // ----------------------------
 let data = {
-  tanya: {name:'Tanya Alger', level:'senior', currency:'CAD', points:124, pending:0, earned:0, paid:0, promoCode:'TA-LUNA9QX-WG26', memberId:'TA-AMB-WG7-9QX-LUNA'},
+  tanya:{name:'Tanya Alger', level:'senior', currency:'CAD', points:124, pending:0, earned:0, paid:0, promoCode:'TA-LUNA9QX-WG26', memberId:'TA-AMB-WG7-9QX-LUNA'},
   daniel:{name:'Daniel Beauvais', level:'senior', currency:'CAD', points:243, pending:0, earned:0, paid:0, promoCode:'TA-EMBERKR8-SA26', memberId:'TA-AMB-SA4-KR8-EMBER'},
   jimmy:{name:'Jimmy Alcuizar', level:'brand', currency:'PHP', points:0, pending:0, earned:0, paid:0, promoCode:'TA-NEONN7C-BR26', memberId:'TA-AMB-B2-N7C-NEON'},
   founder:{name:'Founder', level:'Admin', currency:'CAD', points:0, pending:0, earned:0, paid:0, promoCode:'FOUNDER-ACCESS', memberId:FOUNDER_PASSWORD}
 };
 
 const POINTS_TO_MONEY = 0.02;
+const CAD_TO_PHP = 45;
 
 // ----------------------------
 // UTILS
 // ----------------------------
-function moneyString(amount, currency){ return amount.toFixed(2) + ' ' + currency; }
+function moneyString(amount,currency){ return amount.toFixed(2)+' '+currency; }
+function nowUTC(){ return Date.now(); }
 function isProbationComplete(){ return true; }
 
 // ----------------------------
 // LOGIN / LOGOUT
 // ----------------------------
-function login() {
+function login(){
   const user = document.getElementById('userSelect').value;
   const pass = document.getElementById('userPass').value.trim();
 
@@ -34,6 +36,160 @@ function login() {
     return alert('❌ Wrong password.');
   }
 
+  currentUser = user;
+  document.getElementById('loginBox').classList.add('hidden');
+  document.getElementById('ambassadorApp').classList.remove('hidden');
+
+  if(user==='founder'){
+    alert('✅ Founder login successful!');
+    showFounderDashboard();
+  } else {
+    updateDashboard();
+  }
+}
+
+function logout(){
+  currentUser = null;
+  document.getElementById('loginBox').classList.remove('hidden');
+  document.getElementById('ambassadorApp').classList.add('hidden');
+
+  // Remove Founder table if present
+  const adminTable = document.getElementById('adminTable');
+  if(adminTable) adminTable.remove();
+
+  const founderTitle = document.getElementById('founderTitle');
+  if(founderTitle) founderTitle.remove();
+}
+
+// ----------------------------
+// DASHBOARD FOR AMBASSADORS
+// ----------------------------
+function updateDashboard(){
+  const d = data[currentUser];
+  document.getElementById('programStatusTag').innerText = 'LIVE';
+  document.getElementById('ambName').innerText = d.name + ' (' + d.level + ')';
+  document.getElementById('ambPending').innerText = moneyString(d.pending, d.currency);
+  document.getElementById('ambEarned').innerText = moneyString(d.earned, d.currency);
+  document.getElementById('ambPaid').innerText = moneyString(d.paid, d.currency);
+  document.getElementById('ambPoints').innerText = d.points;
+  document.getElementById('pointsValue').innerText = (d.points*POINTS_TO_MONEY).toFixed(2);
+  document.getElementById('promoCodeDisplay').value = d.promoCode;
+  document.getElementById('refLink').value = 'https://tommyalger.com/merch?promo='+encodeURIComponent(d.promoCode);
+  const example = d.memberId.slice(-8);
+  document.getElementById('payoutHint').innerText = 'Example code: TA-PAY-' + example;
+  populatePayoutOptions();
+}
+
+// ----------------------------
+// DASHBOARD FOR FOUNDER
+// ----------------------------
+function showFounderDashboard(){
+  const container = document.getElementById('ambassadorApp');
+
+  // Title
+  let title = document.getElementById('founderTitle');
+  if(!title){
+    title = document.createElement('h1');
+    title.id = 'founderTitle';
+    title.style.textAlign = 'center';
+    title.style.color = '#22c55e';
+    title.style.marginBottom = '12px';
+    title.innerText = 'Founder Dashboard — All Ambassadors';
+    container.prepend(title);
+  }
+
+  // Table
+  let table = document.getElementById('adminTable');
+  if(!table){
+    table = document.createElement('table');
+    table.id = 'adminTable';
+    table.style.width = '100%';
+    container.appendChild(table);
+  }
+
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Level</th>
+        <th>Currency</th>
+        <th>Points</th>
+        <th>Pending</th>
+        <th>Earned</th>
+        <th>Paid</th>
+        <th>Promo Code</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${Object.keys(data).filter(k => k!=='founder').map(k => {
+        const d = data[k];
+        return `<tr>
+          <td>${d.name}</td>
+          <td>${d.level}</td>
+          <td>${d.currency}</td>
+          <td>${d.points}</td>
+          <td>${moneyString(d.pending,d.currency)}</td>
+          <td>${moneyString(d.earned,d.currency)}</td>
+          <td>${moneyString(d.paid,d.currency)}</td>
+          <td>${d.promoCode}</td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  `;
+}
+
+// ----------------------------
+// POINTS & PAYOUT
+// ----------------------------
+function convertPoints(){
+  if(currentUser==='founder') return alert('⚠️ Founder cannot convert points.');
+  const d = data[currentUser];
+  const value = d.points*POINTS_TO_MONEY;
+  if(value<=0) return alert('No points to convert.');
+  d.pending += value;
+  d.earned += value;
+  d.points = 0;
+  updateDashboard();
+  alert('✅ Points converted to pending.');
+}
+
+function requestPayout(user,type){
+  if(currentUser==='founder') return alert('⚠️ Founder cannot request payouts.');
+  alert('✅ Payout request submitted ('+type+')');
+}
+
+function copyRef(){
+  if(currentUser==='founder') return alert('⚠️ Founder has no referral link.');
+  const ref = document.getElementById('refLink');
+  ref.select();
+  document.execCommand('copy');
+  alert('Copied referral link!');
+}
+
+// ----------------------------
+// POPULATE GIFTS (simplified)
+// ----------------------------
+function populatePayoutOptions(){
+  if(currentUser==='founder') return;
+  const d = data[currentUser];
+  const sel = document.getElementById('giftCardType');
+  sel.innerHTML = '';
+  const gifts = d.currency==='PHP'? ['Store Credit','Amazon','GCash Gift Card'] : ['Store Credit','Amazon','Tim Hortons'];
+  gifts.forEach(g=>{ const opt = document.createElement('option'); opt.value = g; opt.textContent = g; sel.appendChild(opt); });
+}
+
+// ----------------------------
+// INIT
+// ----------------------------
+document.addEventListener('DOMContentLoaded', ()=>{
+  window.login = login;
+  window.logout = logout;
+  window.convertPoints = convertPoints;
+  window.requestPayout = requestPayout;
+  window.copyRef = copyRef;
+  console.log('Portal initialized');
+});
+</script>
   currentUser = user;
   document.getElementById('loginBox').classList.add('hidden');
   document.getElementById('ambassadorApp').classList.remove('hidden');
